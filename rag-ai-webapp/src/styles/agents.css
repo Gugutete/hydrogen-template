@@ -1,0 +1,384 @@
+.agents-container {
+  padding: 20px;
+}
+
+.agents-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.agents-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.agent-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.agent-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+}
+
+.agent-header {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.agent-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  background-color: var(--primary-color);
+}
+
+.agent-menu {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-light);
+  transition: var(--transition);
+}
+
+.agent-menu:hover {
+  color: var(--text-color);
+}
+
+.agent-content {
+  padding: 0 20px 20px;
+}
+
+.agent-name {
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-bottom: 5px;
+}
+
+.agent-status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  margin-bottom: 15px;
+}
+
+.agent-status.active {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: #27ae60;
+}
+
+.agent-status.inactive {
+  background-color: rgba(189, 195, 199, 0.2);
+  color: #7f8c8d;
+}
+
+.agent-description {
+  color: var(--text-light);
+  margin-bottom: 15px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.agent-stats {
+  margin-bottom: 15px;
+}
+
+.agent-stat {
+  margin-bottom: 10px;
+}
+
+.agent-stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 0.8rem;
+}
+
+.agent-stat-label {
+  color: var(--text-light);
+}
+
+.agent-stat-value {
+  font-weight: 500;
+}
+
+.agent-progress {
+  height: 6px;
+  background-color: var(--border-color);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.agent-progress-bar {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.agent-progress-bar.green {
+  background-color: #2ecc71;
+}
+
+.agent-progress-bar.yellow {
+  background-color: #f1c40f;
+}
+
+.agent-progress-bar.red {
+  background-color: #e74c3c;
+}
+
+.agent-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-top: 1px solid var(--border-color);
+}
+
+.agent-configure {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: var(--transition);
+}
+
+.agent-configure:hover {
+  color: var(--primary-light);
+}
+
+.agent-toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+}
+
+.agent-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.agent-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-color);
+  transition: var(--transition);
+  border-radius: 20px;
+}
+
+.agent-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: var(--transition);
+  border-radius: 50%;
+}
+
+.agent-toggle input:checked + .agent-toggle-slider {
+  background-color: var(--primary-color);
+}
+
+.agent-toggle input:checked + .agent-toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.create-agent-card {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius);
+  border: 2px dashed var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  height: 100%;
+}
+
+.create-agent-card:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-3px);
+}
+
+.create-agent-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(113, 34, 255, 0.1);
+  color: var(--primary-color);
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+}
+
+.create-agent-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+}
+
+.create-agent-text {
+  color: var(--text-light);
+  margin-bottom: 0;
+}
+
+.agent-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.agent-modal-content {
+  background-color: var(--card-background);
+  border-radius: var(--border-radius);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+
+.agent-modal-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.agent-modal-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+
+.agent-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-light);
+  transition: var(--transition);
+}
+
+.agent-modal-close:hover {
+  color: var(--text-color);
+}
+
+.agent-modal-body {
+  padding: 20px;
+}
+
+.agent-modal-footer {
+  padding: 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.agent-form-group {
+  margin-bottom: 20px;
+}
+
+.agent-form-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.agent-form-input {
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  background-color: var(--card-background);
+  color: var(--text-color);
+  transition: var(--transition);
+}
+
+.agent-form-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(113, 34, 255, 0.2);
+}
+
+.agent-form-textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  background-color: var(--card-background);
+  color: var(--text-color);
+  transition: var(--transition);
+  min-height: 100px;
+  resize: vertical;
+}
+
+.agent-form-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(113, 34, 255, 0.2);
+}
+
+.agent-form-select {
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  background-color: var(--card-background);
+  color: var(--text-color);
+  transition: var(--transition);
+}
+
+.agent-form-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(113, 34, 255, 0.2);
+}
