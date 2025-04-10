@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schiavo Bus - Test Server</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #2563eb;
+    }
+    .card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background-color: #f9fafb;
+    }
+    .success {
+      color: #16a34a;
+      font-weight: bold;
+    }
+    .error {
+      color: #dc2626;
+      font-weight: bold;
+    }
+    button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+  </style>
+</head>
+<body>
+  <h1>Schiavo Bus - Test Server</h1>
+
+  <div class="card">
+    <h2>Stato del Server</h2>
+    <p class="success">Il server è in esecuzione sulla porta 9000</p>
+    <p>Questo è un server di test per verificare la connettività.</p>
+  </div>
+
+  <div class="card">
+    <h2>Test di Connessione a Supabase</h2>
+    <p>Clicca il pulsante per testare la connessione a Supabase:</p>
+    <button id="testSupabase">Test Supabase</button>
+    <div id="supabaseResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>Informazioni di Debug</h2>
+    <p>URL: <span id="currentUrl"></span></p>
+    <p>User Agent: <span id="userAgent"></span></p>
+  </div>
+
+  <script>
+    // Mostra informazioni di debug
+    document.getElementById('currentUrl').textContent = window.location.href;
+    document.getElementById('userAgent').textContent = navigator.userAgent;
+
+    // Test di connessione a Supabase
+    document.getElementById('testSupabase').addEventListener('click', async () => {
+      const resultElement = document.getElementById('supabaseResult');
+      resultElement.innerHTML = '<p>Tentativo di connessione a Supabase...</p>';
+
+      try {
+        const response = await fetch('/test-supabase');
+        const data = await response.json();
+
+        if (data.success) {
+          resultElement.innerHTML = '<p class="success">Connessione a Supabase riuscita!</p>';
+        } else {
+          resultElement.innerHTML = '<p class="error">Errore nella connessione a Supabase: ' + data.error + '</p>';
+        }
+      } catch (err) {
+        resultElement.innerHTML = '<p class="error">Errore nella richiesta: ' + err.message + '</p>';
+      }
+    });
+  </script>
+</body>
+</html>
