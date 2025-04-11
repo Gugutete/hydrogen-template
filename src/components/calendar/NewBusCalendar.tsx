@@ -32,9 +32,10 @@ interface Tour {
 interface BusCalendarProps {
   tours?: Tour[];
   onDeleteTour?: (tourId: string) => void;
+  buses?: Bus[];
 }
 
-const NewBusCalendar = ({ tours: propTours, onDeleteTour }: BusCalendarProps) => {
+const NewBusCalendar = ({ tours: propTours, onDeleteTour, buses: propBuses }: BusCalendarProps) => {
   // Funzione per gestire lo spostamento di un tour
   const handleMoveTour = (tour: Tour, newBusId: string, newDate: Date) => {
     console.log('Spostamento tour:', tour.id, 'da bus', tour.busId, 'a bus', newBusId);
@@ -135,46 +136,55 @@ const NewBusCalendar = ({ tours: propTours, onDeleteTour }: BusCalendarProps) =>
     console.log(`Totale giorni: ${days.length}`);
   }, [currentDate, selectedYear]);
 
-  // Mock data per bus e autisti
+  // Usa i bus passati come props o un array vuoto se non disponibili
   useEffect(() => {
-    const mockBuses: Bus[] = [
-      {
-        id: 'bus1',
-        name: 'Bus Gran Turismo 1',
-        plate: 'AA123BB',
-        driverId: 'driver1',
-        driverName: 'Mario Rossi'
-      },
-      {
-        id: 'bus2',
-        name: 'Bus Gran Turismo 2',
-        plate: 'CC456DD',
-        driverId: 'driver2',
-        driverName: 'Luigi Verdi'
-      },
-      {
-        id: 'bus3',
-        name: 'Bus Gran Turismo 3',
-        plate: 'EE789FF',
-        driverId: 'driver3',
-        driverName: 'Giuseppe Bianchi'
-      },
-      {
-        id: 'bus4',
-        name: 'Bus Gran Turismo 4',
-        plate: 'GG012HH',
-        driverId: 'driver4',
-        driverName: 'Antonio Neri'
-      }
-    ];
-
-    setBuses(mockBuses);
-  }, []);
+    if (propBuses && propBuses.length > 0) {
+      console.log('Bus ricevuti dalle props:', propBuses);
+      setBuses(propBuses);
+    } else {
+      console.log('Nessun bus ricevuto dalle props, uso i dati di esempio');
+      // Dati di esempio come fallback
+      const mockBuses: Bus[] = [
+        {
+          id: 'bus1',
+          name: 'Bus Gran Turismo 1',
+          plate: 'AA123BB',
+          driverId: 'driver1',
+          driverName: 'Mario Rossi'
+        },
+        {
+          id: 'bus2',
+          name: 'Bus Gran Turismo 2',
+          plate: 'CC456DD',
+          driverId: 'driver2',
+          driverName: 'Luigi Verdi'
+        },
+        {
+          id: 'bus3',
+          name: 'Bus Gran Turismo 3',
+          plate: 'EE789FF',
+          driverId: 'driver3',
+          driverName: 'Giuseppe Bianchi'
+        },
+        {
+          id: 'bus4',
+          name: 'Bus Gran Turismo 4',
+          plate: 'GG012HH',
+          driverId: 'driver4',
+          driverName: 'Antonio Neri'
+        }
+      ];
+      setBuses(mockBuses);
+    }
+  }, [propBuses]);
 
   // Usa i tour passati come props o un array vuoto se non disponibili
   useEffect(() => {
     if (propTours && propTours.length > 0) {
+      console.log('Tour ricevuti dalle props:', propTours);
       setTours(propTours);
+    } else {
+      console.log('Nessun tour ricevuto dalle props');
     }
   }, [propTours]);
 
@@ -217,12 +227,29 @@ const NewBusCalendar = ({ tours: propTours, onDeleteTour }: BusCalendarProps) =>
     const dateWithoutTime = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     dateWithoutTime.setHours(0, 0, 0, 0);
 
+    // Debug per vedere i tour disponibili
+    if (date.getDate() === 1 && date.getMonth() === new Date().getMonth()) {
+      console.log('Cercando tour per bus:', busId, 'in data:', format(date, 'yyyy-MM-dd'));
+      console.log('Tour disponibili:', tours);
+    }
+
     const filteredTours = tours.filter(tour => {
       // Verifichiamo che il tour sia per questo bus
-      if (tour.busId !== busId) return false;
+      if (tour.busId !== busId) {
+        // Debug per il primo giorno del mese corrente
+        if (date.getDate() === 1 && date.getMonth() === new Date().getMonth()) {
+          console.log('Tour', tour.id, 'scartato: busId non corrisponde', tour.busId, '!=', busId);
+        }
+        return false;
+      }
 
       // Verifichiamo che il tour sia attivo in questa data
-      if (!tour.start || !tour.end) return false;
+      if (!tour.start || !tour.end) {
+        if (date.getDate() === 1 && date.getMonth() === new Date().getMonth()) {
+          console.log('Tour', tour.id, 'scartato: date mancanti', tour.start, tour.end);
+        }
+        return false;
+      }
 
       // Creiamo le date senza l'ora per confrontare solo le date
       const tourStartStr = tour.start.split('T')[0];
@@ -239,8 +266,23 @@ const NewBusCalendar = ({ tours: propTours, onDeleteTour }: BusCalendarProps) =>
       // Confrontiamo le date (inclusivo per inizio e fine)
       const isActive = dateWithoutTime >= tourStart && dateWithoutTime <= tourEnd;
 
+      // Debug per il primo giorno del mese corrente
+      if (date.getDate() === 1 && date.getMonth() === new Date().getMonth()) {
+        console.log('Tour', tour.id, 'date confronto:',
+          'cellDate:', format(dateWithoutTime, 'yyyy-MM-dd'),
+          'tourStart:', format(tourStart, 'yyyy-MM-dd'),
+          'tourEnd:', format(tourEnd, 'yyyy-MM-dd'),
+          'isActive:', isActive
+        );
+      }
+
       return isActive;
     });
+
+    // Debug per il primo giorno del mese corrente
+    if (date.getDate() === 1 && date.getMonth() === new Date().getMonth() && filteredTours.length > 0) {
+      console.log('Tour trovati per bus', busId, 'in data', format(date, 'yyyy-MM-dd'), ':', filteredTours);
+    }
 
     return filteredTours;
   };

@@ -298,7 +298,7 @@ const ToursPage = () => {
             </div>
           </div>
         ) : view === 'calendar' ? (
-          <NewBusCalendar tours={tours} onDeleteTour={handleDeleteTour} />
+          <NewBusCalendar tours={tours} buses={buses} onDeleteTour={handleDeleteTour} />
         ) : (
           <ToursList
             tours={tours}
