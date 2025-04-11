@@ -12,9 +12,12 @@ interface Maintenance {
   type: 'regular' | 'extraordinary' | 'document';
   description: string;
   date: string;
-  cost: number;
+  cost?: number; // Opzionale per i documenti
   status: 'scheduled' | 'in-progress' | 'completed';
   notes?: string;
+  fileUrl?: string; // URL del file caricato (per documenti)
+  fileName?: string; // Nome del file caricato (per documenti)
+  fileType?: string; // Tipo del file (pdf, jpg, etc.)
 }
 
 const MaintenancePage = () => {
@@ -110,19 +113,30 @@ const MaintenancePage = () => {
     }
   };
 
-  const handleAddMaintenance = async (newMaintenance: Maintenance) => {
+  const handleAddMaintenance = async (newMaintenance: Maintenance, file?: File) => {
     try {
       setLoading(true);
+
+      // Assicurati che il tipo sia coerente con la scheda attiva
+      const maintenanceWithCorrectType = {
+        ...newMaintenance,
+        type: activeTab === 'maintenance' ?
+          (newMaintenance.type === 'document' ? 'regular' : newMaintenance.type) :
+          'document'
+      };
+
+      console.log('Aggiunta manutenzione con tipo:', maintenanceWithCorrectType.type, 'in scheda:', activeTab);
+
       // Inserisci la manutenzione nel database
-      const result = await insertMaintenance(newMaintenance);
+      const result = await insertMaintenance(maintenanceWithCorrectType, file);
 
       if (result) {
         // Aggiorna lo stato locale con i dati restituiti dal server
         setMaintenances(prev => [...prev, result]);
 
         // Se la manutenzione è programmata e di tipo regolare, aggiorna la prossima manutenzione del bus
-        if (newMaintenance.status === 'scheduled' && newMaintenance.type === 'regular') {
-          await updateBusNextMaintenance(newMaintenance.busId);
+        if (maintenanceWithCorrectType.status === 'scheduled' && maintenanceWithCorrectType.type === 'regular') {
+          await updateBusNextMaintenance(maintenanceWithCorrectType.busId);
         }
       }
     } catch (err) {
@@ -175,11 +189,11 @@ const MaintenancePage = () => {
     setShowEditModal(true);
   };
 
-  const handleUpdateMaintenance = async (updatedMaintenance: Maintenance) => {
+  const handleUpdateMaintenance = async (updatedMaintenance: Maintenance, file?: File) => {
     try {
       setLoading(true);
       // Aggiorna la manutenzione nel database
-      const { data, error } = await updateMaintenance(updatedMaintenance.id, updatedMaintenance);
+      const { data, error } = await updateMaintenance(updatedMaintenance.id, updatedMaintenance, file);
 
       if (error) {
         throw error;
@@ -261,12 +275,18 @@ const MaintenancePage = () => {
   };
 
   const filteredMaintenances = maintenances.filter(maintenance => {
+    console.log('Filtraggio manutenzione:', maintenance.id, 'tipo:', maintenance.type, 'scheda attiva:', activeTab);
+
     if (activeTab === 'maintenance') {
+      // Nella scheda Manutenzioni, mostra solo le manutenzioni regolari o straordinarie
       return maintenance.type === 'regular' || maintenance.type === 'extraordinary';
     } else {
+      // Nella scheda Documenti, mostra solo i documenti
       return maintenance.type === 'document';
     }
   });
+
+  console.log('Manutenzioni filtrate:', filteredMaintenances.length, 'di', maintenances.length, 'totali');
 
   return (
     <DashboardLayout>

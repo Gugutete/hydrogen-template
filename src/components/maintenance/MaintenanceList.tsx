@@ -8,8 +8,12 @@ interface Maintenance {
   type: string;
   description: string;
   date: string;
-  cost: number;
+  cost?: number;
   status: string;
+  notes?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
 interface MaintenanceListProps {
@@ -91,7 +95,7 @@ const MaintenanceList: React.FC<MaintenanceListProps> = ({ maintenances, onEdit,
               <th>Bus</th>
               <th>Descrizione</th>
               <th>Data</th>
-              <th>Costo</th>
+              <th>{maintenances.some(m => m.type !== 'document') ? 'Costo' : 'File'}</th>
               <th>Stato</th>
               <th style={{ textAlign: 'right' }}>Azioni</th>
             </tr>
@@ -112,7 +116,38 @@ const MaintenanceList: React.FC<MaintenanceListProps> = ({ maintenances, onEdit,
                   <div>{formatDate(maintenance.date)}</div>
                 </td>
                 <td>
-                  <div>{formatCurrency(maintenance.cost)}</div>
+                  {maintenance.type !== 'document' ? (
+                    <div>{maintenance.cost ? formatCurrency(maintenance.cost) : '-'}</div>
+                  ) : (
+                    <div>
+                      {maintenance.fileUrl ? (
+                        <div className="flex items-center">
+                          <span className="mr-2">{maintenance.fileName || 'Documento'}</span>
+                          <button
+                            onClick={() => {
+                              // Se l'URL inizia con 'blob:', è un URL temporaneo
+                              if (maintenance.fileUrl.startsWith('blob:')) {
+                                // Apri il file in una nuova finestra
+                                window.open(maintenance.fileUrl, '_blank');
+                              } else {
+                                // Altrimenti, prova ad aprire l'URL normalmente
+                                window.open(maintenance.fileUrl, '_blank');
+                              }
+                            }}
+                            className="text-blue-600 hover:text-blue-800 flex items-center"
+                            title="Visualizza documento"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ maxWidth: '16px', maxHeight: '16px' }}>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-500">Nessun file</span>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td>
                   <span className={`badge ${getStatusColor(maintenance.status)}`}>

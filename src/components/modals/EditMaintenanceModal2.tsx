@@ -12,15 +12,18 @@ interface Maintenance {
   type: string;
   description: string;
   date: string;
-  cost: number;
+  cost?: number;
   status: string;
-  notes: string;
+  notes?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
 interface EditMaintenanceModal2Props {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (maintenance: Maintenance) => void;
+  onSave: (maintenance: Maintenance, file?: File) => void;
   maintenance: Maintenance | null;
   buses: Bus[];
 }
@@ -35,8 +38,14 @@ const EditMaintenanceModal2 = ({ isOpen, onClose, onSave, maintenance, buses }: 
     date: '',
     cost: '',
     status: 'scheduled',
-    notes: ''
+    notes: '',
+    fileUrl: '',
+    fileName: '',
+    fileType: ''
   });
+
+  // Stato per il file selezionato
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -49,10 +58,18 @@ const EditMaintenanceModal2 = ({ isOpen, onClose, onSave, maintenance, buses }: 
         type: maintenance.type,
         description: maintenance.description,
         date: maintenance.date ? maintenance.date.split('T')[0] : '',
-        cost: maintenance.cost.toString(),
+        cost: maintenance.cost ? maintenance.cost.toString() : '',
         status: maintenance.status,
-        notes: maintenance.notes
+        notes: maintenance.notes || '',
+        fileUrl: maintenance.fileUrl || '',
+        fileName: maintenance.fileName || '',
+        fileType: maintenance.fileType || ''
       });
+
+      // Se c'è un file URL, mostra un messaggio
+      if (maintenance.fileUrl) {
+        console.log('File esistente:', maintenance.fileName, maintenance.fileUrl);
+      }
     }
   }, [maintenance]);
 
@@ -67,6 +84,35 @@ const EditMaintenanceModal2 = ({ isOpen, onClose, onSave, maintenance, buses }: 
         delete newErrors[name];
         return newErrors;
       });
+    }
+  };
+
+  // Gestisce il caricamento del file
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      setSelectedFile(file);
+
+      // Aggiorna il formData con le informazioni del file
+      setFormData(prev => ({
+        ...prev,
+        fileName: file.name,
+        fileType: file.type.split('/')[1] // Estrae l'estensione dal MIME type
+      }));
+
+      // Simula un URL per il file (in produzione, questo verrebbe dal server dopo il caricamento)
+      const tempFileUrl = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, fileUrl: tempFileUrl }));
+
+      // Clear error when file is selected
+      if (errors.fileUrl) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.fileUrl;
+          return newErrors;
+        });
+      }
     }
   };
 
@@ -85,10 +131,18 @@ const EditMaintenanceModal2 = ({ isOpen, onClose, onSave, maintenance, buses }: 
       newErrors.date = 'La data è obbligatoria';
     }
 
-    if (!formData.cost.trim()) {
-      newErrors.cost = 'Il costo è obbligatorio';
-    } else if (isNaN(Number(formData.cost)) || Number(formData.cost) < 0) {
-      newErrors.cost = 'Inserisci un costo valido';
+    // Validazione del costo solo per le manutenzioni, non per i documenti
+    if (formData.type !== 'document') {
+      if (!formData.cost.trim()) {
+        newErrors.cost = 'Il costo è obbligatorio';
+      } else if (isNaN(Number(formData.cost)) || Number(formData.cost) < 0) {
+        newErrors.cost = 'Inserisci un costo valido';
+      }
+    }
+
+    // Validazione del file per i documenti
+    if (formData.type === 'document' && !selectedFile && !formData.fileUrl) {
+      newErrors.fileUrl = 'Carica un documento';
     }
 
     setErrors(newErrors);
@@ -101,12 +155,15 @@ const EditMaintenanceModal2 = ({ isOpen, onClose, onSave, maintenance, buses }: 
     if (validateForm()) {
       const selectedBus = buses.find(bus => bus.id === formData.busId);
 
-      onSave({
+      const maintenanceData = {
         ...formData,
         id: formData.id,
         busName: selectedBus?.name || formData.busName,
-        cost: Number(formData.cost)
-      } as Maintenance);
+        cost: formData.type !== 'document' ? Number(formData.cost) : undefined
+      } as Maintenance;
+
+      console.log('Aggiornando manutenzione/documento:', maintenanceData);
+      onSave(maintenanceData, selectedFile);
       onClose();
     }
   };
@@ -269,24 +326,71 @@ const EditMaintenanceModal2 = ({ isOpen, onClose, onSave, maintenance, buses }: 
               {errors.date && <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#ef4444' }}>{errors.date}</p>}
             </div>
 
-            <div>
-              <label htmlFor="cost" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Costo (€)</label>
-              <input
-                type="text"
-                id="cost"
-                name="cost"
-                value={formData.cost}
-                onChange={handleChange}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem',
-                  border: errors.cost ? '1px solid #ef4444' : '1px solid #d1d5db',
-                  borderRadius: '0.375rem',
-                  fontSize: '1rem'
-                }}
-              />
-              {errors.cost && <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#ef4444' }}>{errors.cost}</p>}
-            </div>
+            {formData.type !== 'document' ? (
+              <div>
+                <label htmlFor="cost" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Costo (€)</label>
+                <input
+                  type="text"
+                  id="cost"
+                  name="cost"
+                  value={formData.cost}
+                  onChange={handleChange}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: errors.cost ? '1px solid #ef4444' : '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    fontSize: '1rem'
+                  }}
+                />
+                {errors.cost && <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#ef4444' }}>{errors.cost}</p>}
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="file" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Documento (PDF o JPG)</label>
+                <input
+                  type="file"
+                  id="file"
+                  accept=".pdf,.jpg,.jpeg"
+                  onChange={handleFileChange}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: errors.fileUrl ? '1px solid #ef4444' : '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    fontSize: '1rem'
+                  }}
+                />
+                {formData.fileUrl && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#10b981' }}>
+                    {selectedFile ? (
+                      <p>Nuovo file selezionato: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)</p>
+                    ) : (
+                      <p>
+                        File esistente: {formData.fileName || 'Documento'}
+                        <button
+                          onClick={() => {
+                            // Se l'URL inizia con 'blob:', è un URL temporaneo
+                            if (formData.fileUrl.startsWith('blob:')) {
+                              // Apri il file in una nuova finestra
+                              window.open(formData.fileUrl, '_blank');
+                            } else {
+                              // Altrimenti, prova ad aprire l'URL normalmente
+                              window.open(formData.fileUrl, '_blank');
+                            }
+                          }}
+                          className="text-blue-600 hover:text-blue-800 ml-2"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          Visualizza
+                        </button>
+                      </p>
+                    )}
+                  </div>
+                )}
+                {errors.fileUrl && <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#ef4444' }}>{errors.fileUrl}</p>}
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: '2rem' }}>

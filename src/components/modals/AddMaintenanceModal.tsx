@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Bus {
   id: string;
@@ -8,7 +8,7 @@ interface Bus {
 interface AddMaintenanceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (maintenance: any) => void;
+  onSave: (maintenance: any, file?: File) => void;
   buses: Bus[];
   type: 'maintenance' | 'document';
 }
@@ -21,8 +21,51 @@ const AddMaintenanceModal = ({ isOpen, onClose, onSave, buses, type }: AddMainte
     date: '',
     cost: '',
     status: 'scheduled',
-    notes: ''
+    notes: '',
+    fileUrl: '',
+    fileName: '',
+    fileType: ''
   });
+
+  // Stato per il file selezionato
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // Aggiorna il tipo quando cambia la prop type
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      type: type === 'maintenance' ? 'regular' : 'document'
+    }));
+  }, [type]);
+
+  // Gestisce il caricamento del file
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      setSelectedFile(file);
+
+      // Aggiorna il formData con le informazioni del file
+      setFormData(prev => ({
+        ...prev,
+        fileName: file.name,
+        fileType: file.type.split('/')[1] // Estrae l'estensione dal MIME type
+      }));
+
+      // Simula un URL per il file (in produzione, questo verrebbe dal server dopo il caricamento)
+      const tempFileUrl = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, fileUrl: tempFileUrl }));
+
+      // Clear error when file is selected
+      if (errors.fileUrl) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.fileUrl;
+          return newErrors;
+        });
+      }
+    }
+  };
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -55,10 +98,18 @@ const AddMaintenanceModal = ({ isOpen, onClose, onSave, buses, type }: AddMainte
       newErrors.date = 'La data è obbligatoria';
     }
 
-    if (!formData.cost.trim()) {
-      newErrors.cost = 'Il costo è obbligatorio';
-    } else if (isNaN(Number(formData.cost)) || Number(formData.cost) < 0) {
-      newErrors.cost = 'Inserisci un costo valido';
+    // Validazione del costo solo per le manutenzioni, non per i documenti
+    if (type === 'maintenance') {
+      if (!formData.cost.trim()) {
+        newErrors.cost = 'Il costo è obbligatorio';
+      } else if (isNaN(Number(formData.cost)) || Number(formData.cost) < 0) {
+        newErrors.cost = 'Inserisci un costo valido';
+      }
+    }
+
+    // Validazione del file per i documenti
+    if (type === 'document' && !selectedFile && !formData.fileUrl) {
+      newErrors.fileUrl = 'Carica un documento';
     }
 
     setErrors(newErrors);
@@ -71,12 +122,15 @@ const AddMaintenanceModal = ({ isOpen, onClose, onSave, buses, type }: AddMainte
     if (validateForm()) {
       const selectedBus = buses.find(bus => bus.id === formData.busId);
 
-      onSave({
+      const maintenanceData = {
         ...formData,
         id: `maint${Date.now()}`,
         busName: selectedBus?.name || '',
-        cost: Number(formData.cost)
-      });
+        cost: type === 'maintenance' ? Number(formData.cost) : undefined
+      };
+
+      console.log('Salvando manutenzione/documento:', maintenanceData);
+      onSave(maintenanceData, selectedFile);
       onClose();
     }
   };
@@ -237,24 +291,53 @@ const AddMaintenanceModal = ({ isOpen, onClose, onSave, buses, type }: AddMainte
               {errors.date && <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#ef4444' }}>{errors.date}</p>}
             </div>
 
-            <div>
-              <label htmlFor="cost" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Costo (€)</label>
-              <input
-                type="text"
-                id="cost"
-                name="cost"
-                value={formData.cost}
-                onChange={handleChange}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem',
-                  border: errors.cost ? '1px solid #ef4444' : '1px solid #d1d5db',
-                  borderRadius: '0.375rem',
-                  fontSize: '1rem'
-                }}
-              />
-              {errors.cost && <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#ef4444' }}>{errors.cost}</p>}
-            </div>
+            {/* Mostra il campo costo solo per le manutenzioni, non per i documenti */}
+            {type === 'maintenance' && (
+              <div>
+                <label htmlFor="cost" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Costo (€)</label>
+                <input
+                  type="text"
+                  id="cost"
+                  name="cost"
+                  value={formData.cost}
+                  onChange={handleChange}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: errors.cost ? '1px solid #ef4444' : '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    fontSize: '1rem'
+                  }}
+                />
+                {errors.cost && <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#ef4444' }}>{errors.cost}</p>}
+              </div>
+            )}
+
+            {/* Mostra il campo per caricare file solo per i documenti */}
+            {type === 'document' && (
+              <div>
+                <label htmlFor="file" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Documento (PDF o JPG)</label>
+                <input
+                  type="file"
+                  id="file"
+                  accept=".pdf,.jpg,.jpeg"
+                  onChange={handleFileChange}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    border: errors.fileUrl ? '1px solid #ef4444' : '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    fontSize: '1rem'
+                  }}
+                />
+                {selectedFile && (
+                  <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#10b981' }}>
+                    File selezionato: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
+                  </p>
+                )}
+                {errors.fileUrl && <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#ef4444' }}>{errors.fileUrl}</p>}
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: '2rem' }}>
