@@ -901,16 +901,64 @@ export const updateBus = async (id: string, bus: any) => {
 
 export const updateDriver = async (id: string, driver: any) => {
   try {
-    const { data, error } = await supabase.from('drivers').update(driver).eq('id', id).select();
+    console.log('Tentativo di aggiornamento autista con ID:', id, 'Dati:', driver);
+
+    // Trasforma i dati dal formato camelCase al formato snake_case
+    const formattedDriver = {
+      name: driver.name,
+      license_number: driver.licenseNumber,
+      license_expiry: driver.licenseExpiry,
+      phone: driver.phone,
+      email: driver.email,
+      status: driver.status,
+      weekly_hours: driver.drivingHours?.weekly || 0,
+      bi_weekly_hours: driver.drivingHours?.biWeekly || 0,
+      monthly_hours: driver.drivingHours?.monthly || 0
+    };
+
+    console.log('Dati autista formattati per Supabase:', formattedDriver);
+
+    // Aggiorna l'autista in Supabase
+    const { data, error } = await supabase
+      .from('drivers')
+      .update(formattedDriver)
+      .eq('id', id)
+      .select();
 
     if (error) {
+      console.error('Errore Supabase nell\'aggiornamento dell\'autista:', error);
       throw error;
     }
 
-    return { data, error: null };
+    console.log('Risposta aggiornamento autista da Supabase:', data);
+
+    if (data && data.length > 0) {
+      // Trasforma i dati di ritorno dal formato snake_case al formato camelCase
+      const formattedData = data.map(driver => ({
+        id: driver.id,
+        name: driver.name,
+        licenseNumber: driver.license_number,
+        licenseExpiry: driver.license_expiry,
+        phone: driver.phone,
+        email: driver.email,
+        status: driver.status,
+        drivingHours: {
+          weekly: driver.weekly_hours || 0,
+          biWeekly: driver.bi_weekly_hours || 0,
+          monthly: driver.monthly_hours || 0
+        }
+      }))[0];
+
+      console.log('Dati autista aggiornato formattati:', formattedData);
+      return { data: [formattedData], error: null };
+    } else {
+      console.error('Nessun dato restituito dopo l\'aggiornamento dell\'autista');
+      throw new Error('Nessun dato restituito dopo l\'aggiornamento');
+    }
   } catch (err) {
-    console.log('Simulazione aggiornamento autista in modalità demo');
-    return { data: [{ ...driver, id }], error: null };
+    console.error('Errore nell\'aggiornamento dell\'autista:', err);
+    // Non simuliamo più l'aggiornamento, ma lanciamo l'errore
+    return { data: null, error: err };
   }
 };
 
