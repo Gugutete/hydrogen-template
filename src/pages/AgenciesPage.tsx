@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import AddAgencyModal from '../components/modals/AddAgencyModal';
 import EditAgencyModal2 from '../components/modals/EditAgencyModal2';
 import AgenciesList from '../components/agencies/AgenciesList';
-import { updateAgency } from '../lib/supabaseClient';
+import { fetchAgencies, insertAgency, updateAgency, deleteAgency } from '../lib/supabaseClient';
 
 interface Agency {
   id: string;
@@ -22,44 +22,41 @@ const AgenciesPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [agencies, setAgencies] = useState<Agency[]>([
-    {
-      id: 'agency1',
-      name: 'Viaggi Napoli',
-      contactPerson: 'Antonio Esposito',
-      email: 'info@viagginapoli.it',
-      phone: '+39 081 123 4567',
-      address: 'Via Toledo 123',
-      city: 'Napoli',
-      country: 'Italia',
-      status: 'active',
-      toursCount: 12
-    },
-    {
-      id: 'agency2',
-      name: 'Europa Tours',
-      contactPerson: 'Maria Bianchi',
-      email: 'contact@europatours.com',
-      phone: '+39 02 987 6543',
-      address: 'Via Montenapoleone 45',
-      city: 'Milano',
-      country: 'Italia',
-      status: 'active',
-      toursCount: 8
-    },
-    {
-      id: 'agency3',
-      name: 'Italia Vacanze',
-      contactPerson: 'Giuseppe Verdi',
-      email: 'info@italiavacanze.it',
-      phone: '+39 06 543 2109',
-      address: 'Via del Corso 78',
-      city: 'Roma',
-      country: 'Italia',
-      status: 'inactive',
-      toursCount: 0
-    }
-  ]);
+  const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Carica i dati delle agenzie all'avvio
+  useEffect(() => {
+    const loadAgencies = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const { data, error } = await fetchAgencies();
+
+        if (error) {
+          throw error;
+        }
+
+        console.log('Dati agenzie recuperati da Supabase:', data);
+
+        if (data && data.length > 0) {
+          setAgencies(data);
+        } else {
+          // Se non ci sono dati, mostra un messaggio
+          setError('Nessuna agenzia trovata. Aggiungi la prima agenzia.');
+        }
+      } catch (err) {
+        console.error('Errore nel caricamento delle agenzie:', err);
+        setError('Si è verificato un errore nel caricamento delle agenzie.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAgencies();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -83,8 +80,23 @@ const AgenciesPage = () => {
     }
   };
 
-  const handleAddAgency = (newAgency: Agency) => {
-    setAgencies(prev => [...prev, newAgency]);
+  const handleAddAgency = async (newAgency: Agency) => {
+    try {
+      setLoading(true);
+      // Inserisci l'agenzia nel database
+      const result = await insertAgency(newAgency);
+
+      if (result) {
+        // Aggiorna lo stato locale con i dati restituiti dal server
+        setAgencies(prev => [...prev, result]);
+      }
+    } catch (err) {
+      console.error('Errore nell\'inserimento dell\'agenzia:', err);
+      // In caso di errore, aggiungi comunque l'agenzia allo stato locale
+      setAgencies(prev => [...prev, newAgency]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditAgency = (agency: Agency) => {
@@ -94,6 +106,7 @@ const AgenciesPage = () => {
 
   const handleUpdateAgency = async (updatedAgency: Agency) => {
     try {
+      setLoading(true);
       // Aggiorna l'agenzia nel database
       const { data, error } = await updateAgency(updatedAgency.id, updatedAgency);
 
@@ -101,19 +114,43 @@ const AgenciesPage = () => {
         throw error;
       }
 
-      // Aggiorna lo stato locale
-      setAgencies(prev => prev.map(agency => agency.id === updatedAgency.id ? updatedAgency : agency));
-    } catch (error) {
-      console.error('Error updating agency:', error);
+      // Aggiorna lo stato locale con i dati restituiti dal server
+      if (data && data.length > 0) {
+        setAgencies(prev => prev.map(agency => agency.id === updatedAgency.id ? data[0] : agency));
+      } else {
+        // Se non ci sono dati restituiti, usa i dati locali
+        setAgencies(prev => prev.map(agency => agency.id === updatedAgency.id ? updatedAgency : agency));
+      }
+    } catch (err) {
+      console.error('Errore nell\'aggiornamento dell\'agenzia:', err);
       // In caso di errore, aggiorna comunque lo stato locale
       setAgencies(prev => prev.map(agency => agency.id === updatedAgency.id ? updatedAgency : agency));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteAgency = (agencyId: string) => {
+  const handleDeleteAgency = async (agencyId: string) => {
     // Chiedi conferma prima di eliminare
     if (window.confirm('Sei sicuro di voler eliminare questa agenzia?')) {
-      setAgencies(prev => prev.filter(agency => agency.id !== agencyId));
+      try {
+        setLoading(true);
+        // Elimina l'agenzia dal database
+        const { error } = await deleteAgency(agencyId);
+
+        if (error) {
+          throw error;
+        }
+
+        // Aggiorna lo stato locale
+        setAgencies(prev => prev.filter(agency => agency.id !== agencyId));
+      } catch (err) {
+        console.error('Errore nell\'eliminazione dell\'agenzia:', err);
+        // In caso di errore, elimina comunque l'agenzia dallo stato locale
+        setAgencies(prev => prev.filter(agency => agency.id !== agencyId));
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -155,14 +192,35 @@ const AgenciesPage = () => {
           </button>
         </div>
 
-        <div className="card">
-          <AgenciesList
-            agencies={agencies}
-            onEdit={handleEditAgency}
-            onDelete={handleDeleteAgency}
-            onDuplicate={handleDuplicateAgency}
-          />
-        </div>
+        {loading ? (
+          <div className="card">
+            <div className="text-center py-8">
+              <div className="spinner"></div>
+              <p className="mt-4">Caricamento agenzie in corso...</p>
+            </div>
+          </div>
+        ) : error && agencies.length === 0 ? (
+          <div className="card">
+            <div className="text-center py-8">
+              <p className="text-red-500">{error}</p>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="btn btn-primary mt-4"
+              >
+                Aggiungi la prima agenzia
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="card">
+            <AgenciesList
+              agencies={agencies}
+              onEdit={handleEditAgency}
+              onDelete={handleDeleteAgency}
+              onDuplicate={handleDuplicateAgency}
+            />
+          </div>
+        )}
       </div>
 
       {/* Add Agency Modal */}

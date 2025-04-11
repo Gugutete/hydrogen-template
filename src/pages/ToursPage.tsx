@@ -5,6 +5,7 @@ import NewBusCalendar from '../components/calendar/NewBusCalendar';
 import AddTourModal from '../components/modals/AddTourModal';
 import EditTourModal from '../components/modals/EditTourModal';
 import ToursList from '../components/tours/ToursList';
+import { fetchTours, fetchBuses, fetchDrivers, fetchAgencies, insertTour, updateTour, deleteTour } from '../lib/supabaseClient';
 
 interface Tour {
   id: string;
@@ -53,83 +54,150 @@ const ToursPage = () => {
     }
   }, [location]);
 
-  const [tours, setTours] = useState<Tour[]>([
-    {
-      id: 'tour1',
-      title: 'Tour Roma',
-      start: '2023-06-10',
-      end: '2023-06-15',
-      busId: 'bus1',
-      busName: 'Bus Gran Turismo 1',
-      driverId: 'driver1',
-      driverName: 'Mario Rossi',
-      agencyId: 'agency1',
-      agencyName: 'Viaggi Napoli',
-      status: 'active',
-      location: 'Roma - Hotel Colosseo'
-    },
-    {
-      id: 'tour2',
-      title: 'Tour Milano',
-      start: '2023-06-12',
-      end: '2023-06-18',
-      busId: 'bus2',
-      busName: 'Bus Gran Turismo 2',
-      driverId: 'driver2',
-      driverName: 'Luigi Verdi',
-      agencyId: 'agency2',
-      agencyName: 'Europa Tours',
-      status: 'preparation',
-      location: 'Milano - Piazza Duomo'
-    },
-    {
-      id: 'tour3',
-      title: 'Tour Venezia',
-      start: '2023-06-20',
-      end: '2023-06-25',
-      busId: 'bus3',
-      busName: 'Bus Gran Turismo 3',
-      driverId: 'driver3',
-      driverName: 'Giuseppe Bianchi',
-      agencyId: 'agency3',
-      agencyName: 'Italia Vacanze',
-      status: 'active',
-      location: 'Venezia - Piazza San Marco'
+  const [tours, setTours] = useState<Tour[]>([]);
+  const [buses, setBuses] = useState<Array<{ id: string; name: string; plate?: string }>>([]);
+  const [drivers, setDrivers] = useState<Array<{ id: string; name: string }>>([]);
+  const [agencies, setAgencies] = useState<Array<{ id: string; name: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Carica i dati all'avvio
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Recupera tutti i dati necessari in parallelo
+        const [toursResult, busesResult, driversResult, agenciesResult] = await Promise.all([
+          fetchTours(),
+          fetchBuses(),
+          fetchDrivers(),
+          fetchAgencies()
+        ]);
+
+        // Verifica errori
+        if (toursResult.error) throw toursResult.error;
+        if (busesResult.error) throw busesResult.error;
+        if (driversResult.error) throw driversResult.error;
+        if (agenciesResult.error) throw agenciesResult.error;
+
+        console.log('Dati recuperati:', {
+          tours: toursResult.data,
+          buses: busesResult.data,
+          drivers: driversResult.data,
+          agencies: agenciesResult.data
+        });
+
+        // Imposta i dati recuperati
+        if (toursResult.data) setTours(toursResult.data);
+
+        // Prepara i dati dei bus per i dropdown
+        if (busesResult.data) {
+          const formattedBuses = busesResult.data.map(bus => ({
+            id: bus.id,
+            name: bus.name,
+            plate: bus.plate
+          }));
+          setBuses(formattedBuses);
+        }
+
+        // Prepara i dati degli autisti per i dropdown
+        if (driversResult.data) {
+          const formattedDrivers = driversResult.data.map(driver => ({
+            id: driver.id,
+            name: driver.name
+          }));
+          setDrivers(formattedDrivers);
+        }
+
+        // Prepara i dati delle agenzie per i dropdown
+        if (agenciesResult.data) {
+          const formattedAgencies = agenciesResult.data.map(agency => ({
+            id: agency.id,
+            name: agency.name
+          }));
+          setAgencies(formattedAgencies);
+        }
+      } catch (err) {
+        console.error('Errore nel caricamento dei dati:', err);
+        setError('Si è verificato un errore nel caricamento dei dati.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const handleAddTour = async (newTour: Tour) => {
+    try {
+      setLoading(true);
+      console.log('Aggiunto nuovo tour:', newTour);
+
+      // Inserisci il tour nel database
+      const result = await insertTour(newTour);
+
+      if (result) {
+        // Aggiorna lo stato locale con i dati restituiti dal server
+        setTours(prev => [...prev, result]);
+      }
+    } catch (err) {
+      console.error('Errore nell\'inserimento del tour:', err);
+      // In caso di errore, aggiungi comunque il tour allo stato locale
+      setTours(prev => [...prev, newTour]);
+    } finally {
+      setLoading(false);
     }
-  ]);
-
-  const buses = [
-    { id: 'bus1', name: 'Bus Gran Turismo 1', plate: 'AA123BB' },
-    { id: 'bus2', name: 'Bus Gran Turismo 2', plate: 'CC456DD' },
-    { id: 'bus3', name: 'Bus Gran Turismo 3', plate: 'EE789FF' },
-    { id: 'bus4', name: 'Bus Gran Turismo 4', plate: 'GG012HH' }
-  ];
-
-  const drivers = [
-    { id: 'driver1', name: 'Mario Rossi' },
-    { id: 'driver2', name: 'Luigi Verdi' },
-    { id: 'driver3', name: 'Giuseppe Bianchi' }
-  ];
-
-  const agencies = [
-    { id: 'agency1', name: 'Viaggi Napoli' },
-    { id: 'agency2', name: 'Europa Tours' },
-    { id: 'agency3', name: 'Italia Vacanze' }
-  ];
-
-  const handleAddTour = (newTour: Tour) => {
-    console.log('Aggiunto nuovo tour:', newTour);
-    setTours(prev => [...prev, newTour]);
   };
 
-  const handleEditTour = (updatedTour: Tour) => {
-    setTours(prev => prev.map(tour => tour.id === updatedTour.id ? updatedTour : tour));
+  const handleEditTour = async (updatedTour: Tour) => {
+    try {
+      setLoading(true);
+      // Aggiorna il tour nel database
+      const { data, error } = await updateTour(updatedTour.id, updatedTour);
+
+      if (error) {
+        throw error;
+      }
+
+      // Aggiorna lo stato locale con i dati restituiti dal server
+      if (data && data.length > 0) {
+        setTours(prev => prev.map(tour => tour.id === updatedTour.id ? data[0] : tour));
+      } else {
+        // Se non ci sono dati restituiti, usa i dati locali
+        setTours(prev => prev.map(tour => tour.id === updatedTour.id ? updatedTour : tour));
+      }
+    } catch (err) {
+      console.error('Errore nell\'aggiornamento del tour:', err);
+      // In caso di errore, aggiorna comunque lo stato locale
+      setTours(prev => prev.map(tour => tour.id === updatedTour.id ? updatedTour : tour));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteTour = (tourId: string) => {
+  const handleDeleteTour = async (tourId: string) => {
     // Chiedi conferma prima di eliminare
     if (window.confirm('Sei sicuro di voler eliminare questo tour?')) {
-      setTours(prev => prev.filter(tour => tour.id !== tourId));
+      try {
+        setLoading(true);
+        // Elimina il tour dal database
+        const { error } = await deleteTour(tourId);
+
+        if (error) {
+          throw error;
+        }
+
+        // Aggiorna lo stato locale
+        setTours(prev => prev.filter(tour => tour.id !== tourId));
+      } catch (err) {
+        console.error('Errore nell\'eliminazione del tour:', err);
+        // In caso di errore, elimina comunque il tour dallo stato locale
+        setTours(prev => prev.filter(tour => tour.id !== tourId));
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -210,7 +278,26 @@ const ToursPage = () => {
           </div>
         </div>
 
-        {view === 'calendar' ? (
+        {loading ? (
+          <div className="card">
+            <div className="text-center py-8">
+              <div className="spinner"></div>
+              <p className="mt-4">Caricamento dati in corso...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="card">
+            <div className="text-center py-8">
+              <p className="text-red-500">{error}</p>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="btn btn-primary mt-4"
+              >
+                Aggiungi il primo tour
+              </button>
+            </div>
+          </div>
+        ) : view === 'calendar' ? (
           <NewBusCalendar tours={tours} onDeleteTour={handleDeleteTour} />
         ) : (
           <ToursList

@@ -964,31 +964,135 @@ export const updateDriver = async (id: string, driver: any) => {
 
 export const updateTour = async (id: string, tour: any) => {
   try {
-    const { data, error } = await supabase.from('tours').update(tour).eq('id', id).select();
+    console.log('Tentativo di aggiornamento tour con ID:', id, 'Dati:', tour);
+
+    // Trasforma i dati dal formato camelCase al formato snake_case
+    const formattedTour = {
+      title: tour.title,
+      start: tour.start,
+      end: tour.end,
+      bus_id: tour.busId,
+      driver_id: tour.driverId,
+      agency_id: tour.agencyId,
+      status: tour.status,
+      notes: tour.notes,
+      price: tour.price,
+      passengers: tour.passengers,
+      location: tour.location,
+      bus_name: tour.busName,
+      driver_name: tour.driverName,
+      agency_name: tour.agencyName,
+      daily_locations: tour.dailyLocations || []
+    };
+
+    console.log('Dati tour formattati per Supabase:', formattedTour);
+
+    // Aggiorna il tour in Supabase
+    const { data, error } = await supabase
+      .from('tours')
+      .update(formattedTour)
+      .eq('id', id)
+      .select();
 
     if (error) {
+      console.error('Errore Supabase nell\'aggiornamento del tour:', error);
       throw error;
     }
 
-    return { data, error: null };
+    console.log('Risposta aggiornamento tour da Supabase:', data);
+
+    if (data && data.length > 0) {
+      // Trasforma i dati di ritorno dal formato snake_case al formato camelCase
+      const formattedData = data.map(tour => ({
+        id: tour.id,
+        title: tour.title,
+        start: tour.start,
+        end: tour.end,
+        busId: tour.bus_id,
+        driverId: tour.driver_id,
+        agencyId: tour.agency_id,
+        status: tour.status,
+        notes: tour.notes,
+        price: tour.price,
+        passengers: tour.passengers,
+        location: tour.location,
+        busName: tour.bus_name,
+        driverName: tour.driver_name,
+        agencyName: tour.agency_name,
+        dailyLocations: tour.daily_locations || []
+      }))[0];
+
+      console.log('Dati tour aggiornato formattati:', formattedData);
+      return { data: [formattedData], error: null };
+    } else {
+      console.error('Nessun dato restituito dopo l\'aggiornamento del tour');
+      throw new Error('Nessun dato restituito dopo l\'aggiornamento');
+    }
   } catch (err) {
-    console.log('Simulazione aggiornamento tour in modalità demo');
-    return { data: [{ ...tour, id }], error: null };
+    console.error('Errore nell\'aggiornamento del tour:', err);
+    // Non simuliamo più l'aggiornamento, ma lanciamo l'errore
+    return { data: null, error: err };
   }
 };
 
 export const updateAgency = async (id: string, agency: any) => {
   try {
-    const { data, error } = await supabase.from('agencies').update(agency).eq('id', id).select();
+    console.log('Tentativo di aggiornamento agenzia con ID:', id, 'Dati:', agency);
+
+    // Trasforma i dati dal formato camelCase al formato snake_case
+    const formattedAgency = {
+      name: agency.name,
+      contact_person: agency.contactPerson,
+      email: agency.email,
+      phone: agency.phone,
+      address: agency.address,
+      city: agency.city,
+      country: agency.country,
+      status: agency.status,
+      tours_count: agency.toursCount || 0
+    };
+
+    console.log('Dati agenzia formattati per Supabase:', formattedAgency);
+
+    // Aggiorna l'agenzia in Supabase
+    const { data, error } = await supabase
+      .from('agencies')
+      .update(formattedAgency)
+      .eq('id', id)
+      .select();
 
     if (error) {
+      console.error('Errore Supabase nell\'aggiornamento dell\'agenzia:', error);
       throw error;
     }
 
-    return { data, error: null };
+    console.log('Risposta aggiornamento agenzia da Supabase:', data);
+
+    if (data && data.length > 0) {
+      // Trasforma i dati di ritorno dal formato snake_case al formato camelCase
+      const formattedData = data.map(agency => ({
+        id: agency.id,
+        name: agency.name,
+        contactPerson: agency.contact_person,
+        email: agency.email,
+        phone: agency.phone,
+        address: agency.address,
+        city: agency.city,
+        country: agency.country,
+        status: agency.status,
+        toursCount: agency.tours_count || 0
+      }))[0];
+
+      console.log('Dati agenzia aggiornata formattati:', formattedData);
+      return { data: [formattedData], error: null };
+    } else {
+      console.error('Nessun dato restituito dopo l\'aggiornamento dell\'agenzia');
+      throw new Error('Nessun dato restituito dopo l\'aggiornamento');
+    }
   } catch (err) {
-    console.log('Simulazione aggiornamento agenzia in modalità demo');
-    return { data: [{ ...agency, id }], error: null };
+    console.error('Errore nell\'aggiornamento dell\'agenzia:', err);
+    // Non simuliamo più l'aggiornamento, ma lanciamo l'errore
+    return { data: null, error: err };
   }
 };
 
