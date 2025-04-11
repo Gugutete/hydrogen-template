@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import AddMaintenanceModal from '../components/modals/AddMaintenanceModal';
 import EditMaintenanceModal2 from '../components/modals/EditMaintenanceModal2';
 import MaintenanceList from '../components/maintenance/MaintenanceList';
-import { updateMaintenance } from '../lib/supabaseClient';
+import { fetchMaintenances, fetchBuses, insertMaintenance, updateMaintenance, deleteMaintenance, updateBus } from '../lib/supabaseClient';
 
 interface Maintenance {
   id: string;
@@ -22,55 +22,54 @@ const MaintenancePage = () => {
   const [selectedMaintenance, setSelectedMaintenance] = useState<Maintenance | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'maintenance' | 'documents'>('maintenance');
+  const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
+  const [buses, setBuses] = useState<Array<{ id: string; name: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock buses for the modal
-  const buses = [
-    { id: 'bus1', name: 'Bus Gran Turismo 1' },
-    { id: 'bus2', name: 'Bus Gran Turismo 2' },
-    { id: 'bus3', name: 'Bus Gran Turismo 3' }
-  ];
-  const [maintenances, setMaintenances] = useState<Maintenance[]>([
-    {
-      id: 'maint1',
-      busId: 'bus1',
-      busName: 'Bus Gran Turismo 1',
-      type: 'regular',
-      description: 'Cambio olio e filtri',
-      date: '2023-07-15',
-      cost: 450,
-      status: 'scheduled'
-    },
-    {
-      id: 'maint2',
-      busId: 'bus2',
-      busName: 'Bus Gran Turismo 2',
-      type: 'extraordinary',
-      description: 'Sostituzione freni',
-      date: '2023-04-08',
-      cost: 1200,
-      status: 'in-progress'
-    },
-    {
-      id: 'maint3',
-      busId: 'bus3',
-      busName: 'Bus Gran Turismo 3',
-      type: 'document',
-      description: 'Rinnovo assicurazione',
-      date: '2023-09-05',
-      cost: 3500,
-      status: 'completed'
-    },
-    {
-      id: 'maint4',
-      busId: 'bus2',
-      busName: 'Bus Gran Turismo 2',
-      type: 'document',
-      description: 'Revisione annuale',
-      date: '2023-05-20',
-      cost: 250,
-      status: 'scheduled'
-    }
-  ]);
+  // Carica i dati all'avvio
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Recupera tutti i dati necessari in parallelo
+        const [maintenancesResult, busesResult] = await Promise.all([
+          fetchMaintenances(),
+          fetchBuses()
+        ]);
+
+        // Verifica errori
+        if (maintenancesResult.error) throw maintenancesResult.error;
+        if (busesResult.error) throw busesResult.error;
+
+        console.log('Dati recuperati:', {
+          maintenances: maintenancesResult.data,
+          buses: busesResult.data
+        });
+
+        // Imposta i dati recuperati
+        if (maintenancesResult.data) setMaintenances(maintenancesResult.data);
+
+        // Prepara i dati dei bus per i dropdown
+        if (busesResult.data) {
+          const formattedBuses = busesResult.data.map(bus => ({
+            id: bus.id,
+            name: bus.name
+          }));
+          setBuses(formattedBuses);
+        }
+      } catch (err) {
+        console.error('Errore nel caricamento dei dati:', err);
+        setError('Si è verificato un errore nel caricamento dei dati.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -111,8 +110,64 @@ const MaintenancePage = () => {
     }
   };
 
-  const handleAddMaintenance = (newMaintenance: Maintenance) => {
-    setMaintenances(prev => [...prev, newMaintenance]);
+  const handleAddMaintenance = async (newMaintenance: Maintenance) => {
+    try {
+      setLoading(true);
+      // Inserisci la manutenzione nel database
+      const result = await insertMaintenance(newMaintenance);
+
+      if (result) {
+        // Aggiorna lo stato locale con i dati restituiti dal server
+        setMaintenances(prev => [...prev, result]);
+
+        // Se la manutenzione è programmata e di tipo regolare, aggiorna la prossima manutenzione del bus
+        if (newMaintenance.status === 'scheduled' && newMaintenance.type === 'regular') {
+          await updateBusNextMaintenance(newMaintenance.busId);
+        }
+      }
+    } catch (err) {
+      console.error('Errore nell\'inserimento della manutenzione:', err);
+      // In caso di errore, aggiungi comunque la manutenzione allo stato locale
+      setMaintenances(prev => [...prev, newMaintenance]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Funzione per aggiornare la prossima manutenzione di un bus
+  const updateBusNextMaintenance = async (busId: string) => {
+    try {
+      // Recupera tutte le manutenzioni programmate per questo bus
+      const filteredMaintenances = maintenances.filter(m =>
+        m.busId === busId &&
+        m.status === 'scheduled' &&
+        m.type === 'regular' &&
+        new Date(m.date) > new Date()
+      );
+
+      // Aggiungi la nuova manutenzione alla lista filtrata
+      const allMaintenances = [...filteredMaintenances];
+
+      // Ordina le manutenzioni per data
+      allMaintenances.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // Prendi la prima manutenzione programmata (la più vicina)
+      const nextMaintenance = allMaintenances.length > 0 ? allMaintenances[0].date : null;
+
+      if (nextMaintenance) {
+        // Recupera il bus
+        const { data: busData } = await fetchBuses();
+        const bus = busData.find(b => b.id === busId);
+
+        if (bus) {
+          // Aggiorna la prossima manutenzione del bus
+          await updateBus(busId, { ...bus, nextMaintenance });
+          console.log(`Prossima manutenzione del bus ${busId} aggiornata a ${nextMaintenance}`);
+        }
+      }
+    } catch (err) {
+      console.error('Errore nell\'aggiornamento della prossima manutenzione del bus:', err);
+    }
   };
 
   const handleEditMaintenance = (maintenance: Maintenance) => {
@@ -122,6 +177,7 @@ const MaintenancePage = () => {
 
   const handleUpdateMaintenance = async (updatedMaintenance: Maintenance) => {
     try {
+      setLoading(true);
       // Aggiorna la manutenzione nel database
       const { data, error } = await updateMaintenance(updatedMaintenance.id, updatedMaintenance);
 
@@ -129,19 +185,57 @@ const MaintenancePage = () => {
         throw error;
       }
 
-      // Aggiorna lo stato locale
-      setMaintenances(prev => prev.map(maintenance => maintenance.id === updatedMaintenance.id ? updatedMaintenance : maintenance));
-    } catch (error) {
-      console.error('Error updating maintenance:', error);
+      // Aggiorna lo stato locale con i dati restituiti dal server
+      if (data && data.length > 0) {
+        setMaintenances(prev => prev.map(maintenance => maintenance.id === updatedMaintenance.id ? data[0] : maintenance));
+      } else {
+        // Se non ci sono dati restituiti, usa i dati locali
+        setMaintenances(prev => prev.map(maintenance => maintenance.id === updatedMaintenance.id ? updatedMaintenance : maintenance));
+      }
+
+      // Se la manutenzione è programmata e di tipo regolare, aggiorna la prossima manutenzione del bus
+      if (updatedMaintenance.status === 'scheduled' && updatedMaintenance.type === 'regular') {
+        await updateBusNextMaintenance(updatedMaintenance.busId);
+      }
+    } catch (err) {
+      console.error('Errore nell\'aggiornamento della manutenzione:', err);
       // In caso di errore, aggiorna comunque lo stato locale
       setMaintenances(prev => prev.map(maintenance => maintenance.id === updatedMaintenance.id ? updatedMaintenance : maintenance));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteMaintenance = (maintenanceId: string) => {
+  const handleDeleteMaintenance = async (maintenanceId: string) => {
     // Chiedi conferma prima di eliminare
     if (window.confirm('Sei sicuro di voler eliminare questa manutenzione?')) {
-      setMaintenances(prev => prev.filter(maintenance => maintenance.id !== maintenanceId));
+      try {
+        setLoading(true);
+
+        // Trova la manutenzione prima di eliminarla
+        const maintenanceToDelete = maintenances.find(m => m.id === maintenanceId);
+
+        // Elimina la manutenzione dal database
+        const { error } = await deleteMaintenance(maintenanceId);
+
+        if (error) {
+          throw error;
+        }
+
+        // Aggiorna lo stato locale
+        setMaintenances(prev => prev.filter(maintenance => maintenance.id !== maintenanceId));
+
+        // Se la manutenzione eliminata era programmata e di tipo regolare, aggiorna la prossima manutenzione del bus
+        if (maintenanceToDelete && maintenanceToDelete.status === 'scheduled' && maintenanceToDelete.type === 'regular') {
+          await updateBusNextMaintenance(maintenanceToDelete.busId);
+        }
+      } catch (err) {
+        console.error('Errore nell\'eliminazione della manutenzione:', err);
+        // In caso di errore, elimina comunque la manutenzione dallo stato locale
+        setMaintenances(prev => prev.filter(maintenance => maintenance.id !== maintenanceId));
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -235,14 +329,35 @@ const MaintenancePage = () => {
           </button>
         </div>
 
-        <div className="card">
-          <MaintenanceList
-            maintenances={filteredMaintenances}
-            onEdit={handleEditMaintenance}
-            onDelete={handleDeleteMaintenance}
-            onDuplicate={handleDuplicateMaintenance}
-          />
-        </div>
+        {loading ? (
+          <div className="card">
+            <div className="text-center py-8">
+              <div className="spinner"></div>
+              <p className="mt-4">Caricamento dati in corso...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="card">
+            <div className="text-center py-8">
+              <p className="text-red-500">{error}</p>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="btn btn-primary mt-4"
+              >
+                Aggiungi la prima manutenzione
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="card">
+            <MaintenanceList
+              maintenances={filteredMaintenances}
+              onEdit={handleEditMaintenance}
+              onDelete={handleDeleteMaintenance}
+              onDuplicate={handleDuplicateMaintenance}
+            />
+          </div>
+        )}
       </div>
 
       {/* Add Maintenance Modal */}

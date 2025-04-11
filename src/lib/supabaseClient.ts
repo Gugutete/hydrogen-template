@@ -1098,16 +1098,60 @@ export const updateAgency = async (id: string, agency: any) => {
 
 export const updateMaintenance = async (id: string, maintenance: any) => {
   try {
-    const { data, error } = await supabase.from('maintenances').update(maintenance).eq('id', id).select();
+    console.log('Tentativo di aggiornamento manutenzione con ID:', id, 'Dati:', maintenance);
+
+    // Trasforma i dati dal formato camelCase al formato snake_case
+    const formattedMaintenance = {
+      bus_id: maintenance.busId,
+      bus_name: maintenance.busName,
+      type: maintenance.type,
+      description: maintenance.description,
+      date: maintenance.date,
+      cost: maintenance.cost,
+      status: maintenance.status,
+      notes: maintenance.notes
+    };
+
+    console.log('Dati manutenzione formattati per Supabase:', formattedMaintenance);
+
+    // Aggiorna la manutenzione in Supabase
+    const { data, error } = await supabase
+      .from('maintenances')
+      .update(formattedMaintenance)
+      .eq('id', id)
+      .select();
 
     if (error) {
+      console.error('Errore Supabase nell\'aggiornamento della manutenzione:', error);
       throw error;
     }
 
-    return { data, error: null };
+    console.log('Risposta aggiornamento manutenzione da Supabase:', data);
+
+    if (data && data.length > 0) {
+      // Trasforma i dati di ritorno dal formato snake_case al formato camelCase
+      const formattedData = data.map(maintenance => ({
+        id: maintenance.id,
+        busId: maintenance.bus_id,
+        busName: maintenance.bus_name,
+        type: maintenance.type,
+        description: maintenance.description,
+        date: maintenance.date,
+        cost: maintenance.cost,
+        status: maintenance.status,
+        notes: maintenance.notes
+      }))[0];
+
+      console.log('Dati manutenzione aggiornata formattati:', formattedData);
+      return { data: [formattedData], error: null };
+    } else {
+      console.error('Nessun dato restituito dopo l\'aggiornamento della manutenzione');
+      throw new Error('Nessun dato restituito dopo l\'aggiornamento');
+    }
   } catch (err) {
-    console.log('Simulazione aggiornamento manutenzione in modalità demo');
-    return { data: [{ ...maintenance, id }], error: null };
+    console.error('Errore nell\'aggiornamento della manutenzione:', err);
+    // Non simuliamo più l'aggiornamento, ma lanciamo l'errore
+    return { data: null, error: err };
   }
 };
 
